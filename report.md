@@ -152,5 +152,11 @@ inconsistent: `suffix`/`prefix` are `null` from `/v1/people/{id}` but `""` from
   can't tell these cases apart.
 - **A newly created person may not be readable right away.** The docs say the id "might
   not be available immediately", so clients have to poll after a create.
-- **Endpoint naming:** list is `GET /v1/peoples`, single record is `/v1/people/{id}`.
+- **Endpoint naming violates REST conventions.** A collection and its members should share
+  one resource path (`GET /v1/people` lists, `GET /v1/people/{id}` fetches one). Here the
+  list lives at a different resource, `GET /v1/peoples`, while `/v1/people` only accepts
+  `PUT`/`POST`. The verbs are also reversed from the usual meaning: `PUT /v1/people`
+  creates a new record each time (not idempotent), and `POST /v1/people` does the
+  add-or-update. Similarly, `PUT /v1/tag` and `PUT /v1/tasks` create records, and
+  `POST /v1/attributioncode/{id}` updates one.
 - **`DELETE /v1/people/{id}` takes a `Person` request body** according to the spec.
