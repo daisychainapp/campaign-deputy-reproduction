@@ -83,22 +83,7 @@ The new id's embedded timestamp is again exactly the update time.
 
 ---
 
-## 2. Records with no data at all can be created, and each becomes a separate person
-
-Nothing is required when creating a person, so an empty record is accepted. Repeating
-the request creates another empty record. These records already exist in the account:
-
-| `id` | `legacyId` | name | email |
-|---|---|---|---|
-| `3JWEDnzRUMndaNlppSDqDXabWLV` | 66891698 | (blank) | (blank) |
-| `3JWE3HxPHC7BIZIRI89cRvvyufw` | 66891691 | (blank) | (blank) |
-
-They appear as empty rows in the web UI's People list. Combined with issue 1, there is
-no reliable way to tell whether several records are one person or several people.
-
----
-
-## 3. `POST /v1/people` (add-or-update) returns "queued" but the update never applies
+## 2. `POST /v1/people` (add-or-update) returns "queued" but the update never applies
 
 Request (2026-09-19 14:11:10 UTC), with a full-permission key:
 
@@ -130,7 +115,7 @@ As of 14:24 UTC, 13 minutes after the first request and 3 minutes after the seco
 
 ---
 
-## 4. `PUT /v1/people` response doesn't match the spec
+## 3. `PUT /v1/people` response doesn't match the spec
 
 The spec says the `200` response is a `Person` object (`id`, `legacyId`, `name`, …).
 The actual response is:
@@ -145,7 +130,7 @@ property, so the prose appears to match the real response and the schema doesn't
 
 ---
 
-## 5. Timestamp format differs between endpoints
+## 4. Timestamp format differs between endpoints
 
 The same field is formatted differently depending on the endpoint:
 
@@ -160,7 +145,7 @@ inconsistent: `suffix`/`prefix` are `null` from `/v1/people/{id}` but `""` from
 
 ---
 
-## 6. Minor
+## 5. Minor
 
 - **Unknown id returns `204`, not `404`.** `GET /v1/people/{id}` answers `204 No Content`
   for an id that doesn't exist, has been replaced (issue 1), or was deleted. The client

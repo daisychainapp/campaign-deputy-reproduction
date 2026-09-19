@@ -23,7 +23,7 @@ each `id` now returns.
 Other modes:
 
 ```
-ruby repro.rb <person_id> --api    # make the edit via POST /v1/people instead (see report, issue 3)
+ruby repro.rb <person_id> --api    # make the edit via POST /v1/people instead (see report, issue 2)
 ruby repro.rb --api                # create a fresh person via PUT, then edit via POST
 ruby repro.rb --decode <id> [...]  # print the timestamp embedded in a person id (KSUID)
 ```
