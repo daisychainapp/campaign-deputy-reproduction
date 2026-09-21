@@ -11,6 +11,9 @@
 #   ruby repro.rb <person_id> --api      same, but perform the edit via POST /v1/people
 #   ruby repro.rb --api                  fully self-contained: create a fresh person via PUT /v1/people,
 #                                        then edit it via POST /v1/people
+#   ruby repro.rb --patch <person_id>    update via PATCH /v1/people/{id} (report issue 6): the
+#                                        documented body 400s and does nothing, {"person":{...}}
+#                                        applies the update and answers 500, and the id survives
 #   ruby repro.rb --decode <id> [...]    print the timestamp embedded in KSUID ids
 #
 # Reads keys from .env next to this file: CAMPAIGN_DEPUTY_KEY for reads,
@@ -50,6 +53,7 @@ class DeputyClient
   def get(path, params = {}) = request(Net::HTTP::Get, path, params: params)
   def put(path, body)        = request(Net::HTTP::Put, path, body: body)
   def post(path, body)       = request(Net::HTTP::Post, path, body: body)
+  def patch(path, body)      = request(Net::HTTP::Patch, path, body: body)
 
   def person(id)
     code, body = get("/v1/people/#{id}")
@@ -108,6 +112,54 @@ end
 
 if ARGV.first == "--decode"
   ARGV.drop(1).each { |id| puts "#{id}  #{ksuid_time(id).iso8601}" }
+  exit
+end
+
+# Issue 6: the body shape the docs describe is rejected with 400 and does nothing, while
+# {"person":{...}} applies the update and answers 500. Issue 1: unlike a web UI edit, an
+# update through PATCH keeps the person's id.
+if ARGV.first == "--patch"
+  target = ARGV[1] or abort "usage: ruby repro.rb --patch <person_id>"
+  reader = DeputyClient.new(load_key("CAMPAIGN_DEPUTY_KEY"))
+  writer = DeputyClient.new(load_key("FULL_PERMISSIONS_CAMPAIGN_DEPUTY_API_KEY"))
+
+  puts "== 1. Snapshot person #{target}"
+  code, before = reader.person(target)
+  abort "GET returned #{code}; need a currently-valid id" unless before
+  show("  before", before)
+  legacy_id = before["legacyId"]
+
+  # Re-read via the list, because the id is what we are testing and may have changed.
+  reread = lambda do
+    sleep 8
+    reader.find_by_legacy_id(legacy_id) or abort "person #{legacy_id} vanished from /v1/peoples"
+  end
+
+  [["documented shape (person fields at the top level)", { occupation: "PatchProbe#{Time.now.utc.strftime('%H%M%S')}" }],
+   ["undocumented shape (wrapped in \"person\")",        { person: { occupation: "PatchProbe#{Time.now.utc.strftime('%H%M%S')}X" } }]].each_with_index do |(label, body), i|
+    sent = body[:person] || body
+    puts "\n== #{i + 2}. PATCH /v1/people/#{target} — #{label}"
+    puts "  body: #{JSON.generate(body)}"
+    code, response = writer.patch("/v1/people/#{target}", body)
+    puts "  response: #{response.inspect}"
+
+    after = reread.call
+    applied = after["occupation"] == sent[:occupation]
+    puts "  HTTP #{code}, occupation #{applied ? 'WAS' : 'was NOT'} applied" \
+         " (now #{after['occupation'].inspect})"
+    if code >= 500 && applied
+      puts "  => the write succeeded and the API still reported a server error"
+    elsif code == 400 && !applied
+      puts "  => rejected, record untouched"
+    end
+  end
+
+  after = reread.call
+  puts "\n== RESULT"
+  show("  after", after)
+  puts "  id #{after['id'] == before['id'] ? 'unchanged' : "CHANGED #{before['id']} -> #{after['id']}"}"
+  puts "  lastUpdatedOnUTC #{before['lastUpdatedOnUTC']} -> #{after['lastUpdatedOnUTC']}"
+  puts "  GET /v1/people/#{before['id']} (id held before the update) -> #{reader.person(before['id']).first}"
   exit
 end
 

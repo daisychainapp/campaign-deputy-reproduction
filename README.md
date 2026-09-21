@@ -8,6 +8,11 @@ for Campaign Deputy Support.
   changes when the record is edited, and the old `id` then returns `204 No Content`.
 - **[repro.rb](repro.rb)**: small Ruby client (stdlib only) that reproduces it.
 
+Re-checked against the live API on 2026-09-21. Editing a person in the web UI still replaces
+its `id`; the new `PATCH /v1/people/{personId}` endpoint keeps it, but has no usable request
+schema in the spec and answers `500` on a successful write. See the status table in the
+report.
+
 ## Run it
 
 ```
@@ -25,5 +30,6 @@ Other modes:
 ```
 ruby repro.rb <person_id> --api    # make the edit via POST /v1/people instead (see report, issue 2)
 ruby repro.rb --api                # create a fresh person via PUT, then edit via POST
+ruby repro.rb --patch <person_id>  # update via PATCH /v1/people/{id} (see report, issue 6)
 ruby repro.rb --decode <id> [...]  # print the timestamp embedded in a person id (KSUID)
 ```
